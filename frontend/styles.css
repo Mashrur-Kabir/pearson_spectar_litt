@@ -1,0 +1,415 @@
+/* ═══════════════════════════════════════════
+   Legal AI System — Pearson Specter Litt
+   Design: Dark legal-professional theme
+   Font: Inter + DM Serif Display
+═══════════════════════════════════════════ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap");
+
+/* ── Kill Streamlit's fade transition ── */
+[data-testid="stMainBlockContainer"],
+[data-testid="block-container"],
+section[data-testid="stSidebar"] > div,
+.main .block-container {
+  animation: none !important;
+  transition: none !important;
+}
+/* Also kill the stale-script shimmer */
+.stApp [data-testid="stStatusWidget"] {
+  display: none !important;
+}
+
+/* ── Root tokens ── */
+:root {
+  --bg-app: #080d14;
+  --bg-surface: #0f1724;
+  --bg-card: #131e2e;
+  --bg-card-hover: #172135;
+  --border: #1e2d42;
+  --border-hi: #2a4060;
+  --accent: #3b82f6;
+  --accent-dim: #1d4ed8;
+  --accent-glow: rgba(59, 130, 246, 0.18);
+  --gold: #d4a843;
+  --gold-dim: rgba(212, 168, 67, 0.12);
+  --text-primary: #e8edf4;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+  --success: #22c55e;
+  --warn: #f59e0b;
+  --error: #ef4444;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Global base ── */
+html,
+body,
+[data-testid="stAppViewContainer"] {
+  background: var(--bg-app) !important;
+  font-family:
+    "Inter",
+    -apple-system,
+    sans-serif !important;
+  color: var(--text-primary) !important;
+}
+[data-testid="stApp"] {
+  background: var(--bg-app) !important;
+}
+
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] {
+  background: var(--bg-surface) !important;
+  border-right: 1px solid var(--border) !important;
+}
+section[data-testid="stSidebar"] > div:first-child {
+  padding-top: 1.5rem;
+}
+
+/* ── Main content padding ── */
+.main .block-container {
+  padding: 2rem 2.5rem 3rem !important;
+  max-width: 1280px !important;
+}
+
+/* ── App header (sidebar) ── */
+.firm-name {
+  font-family: "DM Serif Display", serif;
+  font-size: 1.25rem;
+  color: var(--gold);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+.system-name {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Headings ── */
+h1,
+h2,
+h3 {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+h2 {
+  font-size: 1.55rem;
+  margin-bottom: 0.1rem;
+}
+h3 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.6rem;
+}
+
+/* ── Streamlit native widget overrides ── */
+/* Radio buttons */
+[data-testid="stRadio"] > label {
+  display: none;
+}
+[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {
+  font-size: 0.875rem !important;
+  color: var(--text-secondary);
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p:hover {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+/* Selected radio */
+[data-testid="stRadio"]
+  label[data-selected="true"]
+  [data-testid="stMarkdownContainer"]
+  p {
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+
+/* Buttons */
+[data-testid="stButton"] button {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  padding: 0.5rem 1.2rem !important;
+  transition:
+    background 0.15s,
+    transform 0.1s !important;
+}
+[data-testid="stButton"] button:hover {
+  background: var(--accent-dim) !important;
+  transform: translateY(-1px);
+}
+[data-testid="stButton"] button:disabled {
+  background: var(--bg-card) !important;
+  color: var(--text-muted) !important;
+}
+
+/* Text inputs / textareas */
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.875rem !important;
+  transition: border-color 0.15s !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+}
+
+/* Selectbox / multiselect */
+[data-testid="stSelectbox"] > div > div,
+[data-testid="stMultiSelect"] > div > div {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Expanders */
+[data-testid="stExpander"] {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+[data-testid="stExpander"] summary {
+  color: var(--text-secondary) !important;
+  font-size: 0.875rem !important;
+}
+
+/* Tabs */
+[data-testid="stTabs"] [data-testid="stTab"] {
+  color: var(--text-secondary) !important;
+  font-size: 0.875rem !important;
+}
+[data-testid="stTabs"] [data-testid="stTab"][aria-selected="true"] {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+}
+
+/* File uploader */
+[data-testid="stFileUploader"] {
+  background: var(--bg-card) !important;
+  border: 1.5px dashed var(--border-hi) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* Horizontal rule */
+hr {
+  border-color: var(--border) !important;
+  margin: 1.2rem 0 !important;
+}
+
+/* Alerts */
+[data-testid="stAlert"] {
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.875rem !important;
+}
+
+/* Spinner */
+[data-testid="stSpinner"] {
+  color: var(--accent) !important;
+}
+
+/* ── Custom components ── */
+
+/* Legal card (document list items) */
+.legal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.6rem;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.legal-card:hover {
+  border-color: var(--border-hi);
+  background: var(--bg-card-hover);
+}
+
+/* Draft output box */
+.draft-output {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.6rem;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  max-height: 540px;
+  overflow-y: auto;
+}
+.draft-output::-webkit-scrollbar {
+  width: 5px;
+}
+.draft-output::-webkit-scrollbar-track {
+  background: transparent;
+}
+.draft-output::-webkit-scrollbar-thumb {
+  background: var(--border-hi);
+  border-radius: 4px;
+}
+
+/* Evidence chunk cards */
+.evidence-chunk {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.source-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.score-bar-wrap {
+  background: var(--bg-card);
+  border-radius: 3px;
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.score-bar {
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Metric box */
+.metric-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem 1rem;
+  text-align: center;
+}
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.metric-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* Pattern card */
+.pattern-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.75rem;
+}
+.pattern-desc {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.pattern-instr {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.badge-ok {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+.badge-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+.badge-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+.badge-info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+.badge-contract {
+  background: rgba(212, 168, 67, 0.12);
+  color: var(--gold);
+}
+.badge-notice {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+}
+.badge-memo {
+  background: rgba(20, 184, 166, 0.15);
+  color: #2dd4bf;
+}
+
+/* Section intro text */
+.page-sub {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-top: -6px;
+  margin-bottom: 1.2rem;
+}
+
+/* ── Diff view for edit page ── */
+.diff-added {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.diff-removed {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  padding: 2px 4px;
+  border-radius: 3px;
+  text-decoration: line-through;
+}
+
+/* ── Scrollbar global ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hi) transparent;
+}

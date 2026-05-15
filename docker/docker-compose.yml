@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .. # project root (one level up from docker/)
+      dockerfile: docker/Dockerfile
+    container_name: legal_ai_api
+    restart: unless-stopped
+    env_file:
+      - ../.env # loads GEMINI_API_KEY and all other vars
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - TESSERACT_CMD=tesseract
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist ChromaDB and SQLite across container restarts
+      - legal_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── Streamlit Frontend ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: legal_ai_frontend
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - API_BASE_URL=http://api:8000 # uses Docker internal network
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    command: >
+      streamlit run frontend/streamlit_app.py
+      --server.port=8501
+      --server.address=0.0.0.0
+      --server.headless=true
+      --theme.base=dark
+
+volumes:
+  legal_data:
+    driver: local
