@@ -208,13 +208,8 @@ pytest tests/ -v --cov=backend --cov-report=term-missing
 
 ```bash
 # From the project root
-cd docker
-
-# Build and start
-docker-compose up --build
-
-# Run in background
-docker-compose up --build -d
+docker compose -f docker/docker-compose.yml build --no-cache
+docker compose -f docker/docker-compose.yml up
 
 # Expected output:
 # [+] Building ... Successfully built
@@ -427,43 +422,3 @@ docker-compose up
 ```
 
 ---
-
-## Project Structure
-
-```
-legal-ai-system/
-├── backend/
-│   ├── app.py           # FastAPI endpoints
-│   ├── chunker.py       # Text chunking
-│   ├── config.py        # All config from env vars
-│   ├── db.py            # SQLite persistence
-│   ├── edit_learner.py  # Diff → pattern extraction
-│   ├── embeddings.py    # ChromaDB + sentence-transformers
-│   ├── generator.py     # Gemini draft generation
-│   ├── grounding.py     # Evidence formatting + prompt builder
-│   ├── ingest.py        # Pipeline orchestrator
-│   ├── logger.py        # Structured coloured logging
-│   ├── ocr.py           # PDF/image text extraction
-│   ├── parser.py        # Legal field extraction
-│   ├── retriever.py     # Retrieval with filtering
-│   └── schemas.py       # Pydantic models
-├── data/
-│   ├── uploads/         # Saved uploaded files
-│   ├── chroma_db/       # ChromaDB vector store
-│   └── legal_ai.db      # SQLite database
-├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── frontend/
-│   ├── streamlit_app.py # Streamlit dashboard
-│   └── styles.css       # Dark enterprise theme
-├── tests/
-│   ├── test_edit_learner.py
-│   ├── test_generator.py
-│   ├── test_ocr.py
-│   ├── test_parser.py
-│   └── test_retriever.py
-├── .env.example
-├── README.md
-└── requirements.txt
-```
