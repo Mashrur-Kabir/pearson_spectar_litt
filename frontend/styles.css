@@ -45,9 +45,44 @@ section[data-testid="stSidebar"] > div,
   animation: none !important;
   transition: none !important;
 }
-/* Also kill the stale-script shimmer */
+/* Replace default running text with a top global loader (nprogress style) */
+.stApp [data-testid="stStatusWidget"] > div {
+  display: none !important; /* Hide the "Running..." text and stop button */
+}
+
 .stApp [data-testid="stStatusWidget"] {
-  display: none !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  background: transparent !important;
+  width: 100vw !important;
+  height: 3px !important;
+  z-index: 999999 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.stApp [data-testid="stStatusWidget"]::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+  animation: globalLoader 1.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes globalLoader {
+  0% { width: 0%; left: 0%; }
+  50% { width: 30%; left: 40%; }
+  100% { width: 0%; left: 100%; }
 }
 
 /* ── Root tokens ── */
