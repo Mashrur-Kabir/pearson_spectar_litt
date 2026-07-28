@@ -122,7 +122,6 @@ authenticator = stauth.Authenticate(
     cookie_name="legal_ai_cookie",
     cookie_key="psl_secure_key_2025",
     cookie_expiry_days=30,
-    auto_hash=False,
 )
 
 # ── Show login / register screen when not authenticated ─────────────────
