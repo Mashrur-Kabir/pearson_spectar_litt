@@ -19,7 +19,7 @@ from backend.schemas import RetrievedChunk, RetrievalResult
 log = get_logger(__name__)
 
 # Chunks below this similarity score are discarded as noise
-_MIN_SCORE: float = 0.05
+_MIN_SCORE: float = -1.0
 
 
 def retrieve(
