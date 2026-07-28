@@ -562,6 +562,14 @@ elif page == "✍️  Generate Draft":
                 f"</div>",
                 unsafe_allow_html=True,
             )
+            
+            st.download_button(
+                label="📥 Download Draft (.txt)",
+                data=draft.get("content",""),
+                file_name=f"Draft_{draft.get('draft_type','unknown')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
 
         with evidence_col:
             st.markdown(f"### 🔍 Evidence ({len(evidence)} chunks)")
