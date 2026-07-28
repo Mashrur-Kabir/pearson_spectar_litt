@@ -149,55 +149,27 @@ if not st.session_state.get("authentication_status"):
     '>
         <span style='font-size:1.5rem'>💼</span>
         <div>
-            <div style='color:#7eb8f7; font-weight:600; font-size:0.95rem'>Hiring Manager? Try the demo instantly</div>
-            <div style='color:#8899bb; font-size:0.82rem'>Click the button below to auto-fill demo credentials</div>
+            <div style='color:#7eb8f7; font-weight:600; font-size:0.95rem'>Hiring Manager? Use Demo Credentials:</div>
+            <div style='color:#8899bb; font-size:0.82rem'>Username: <code>hspecter</code> &nbsp;|&nbsp; Password: <code>Test@1234</code></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    # "Use Demo Credentials" button — sets session state so inputs below pre-fill
-    if st.button(
-        "🚀  Use Demo Credentials",
-        use_container_width=True,
-        type="secondary",
-        key="demo_btn",
-    ):
-        st.session_state["_demo_username"] = DEMO_USERNAME
-        st.session_state["_demo_password"] = DEMO_PASSWORD
-        st.rerun()
 
     st.markdown("---")
 
     login_tab, register_tab = st.tabs(["🔐 Login", "📝 Register"])
 
     with login_tab:
-        # Custom login form so we can control default values
-        with st.form("login_form"):
-            login_username = st.text_input(
-                "Username",
-                value=st.session_state.get("_demo_username", ""),
-                placeholder="Enter your username",
-            )
-            login_password = st.text_input(
-                "Password",
-                type="password",
-                value=st.session_state.get("_demo_password", ""),
-                placeholder="Enter your password",
-            )
-            login_btn = st.form_submit_button("🔐 Sign In", use_container_width=True, type="primary")
-
-        if login_btn:
-            if _verify_login(login_username, login_password, _credentials):
-                _set_authenticated(login_username, _credentials)
-                # Clear demo pre-fill from session
-                st.session_state.pop("_demo_username", None)
-                st.session_state.pop("_demo_password", None)
+        try:
+            name, authentication_status, username = authenticator.login("main")
+            if authentication_status:
                 st.rerun()
-            else:
-                st.error("❌ Username or password is incorrect.")
-
-        if st.session_state.get("_demo_username"):
-            st.info(f"ℹ️ Demo credentials loaded. Click **Sign In** to continue as **{DEMO_NAME}**.")
+            elif authentication_status == False:
+                st.error("Username/password is incorrect")
+            elif authentication_status == None:
+                pass
+        except Exception as e:
+            st.error(e)
 
     with register_tab:
         st.markdown("#### Create a new account")
