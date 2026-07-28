@@ -22,6 +22,12 @@ SQLITE_PATH: Path = DATA_DIR / "legal_ai.db"
 for _d in (UPLOAD_DIR, CHROMA_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
+# ── Cloud Databases ─────────────────────────────────────────────────────────────
+SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+PINECONE_API_KEY: str = os.getenv("PINECONE_API_KEY", "")
+PINECONE_INDEX_NAME: str = os.getenv("PINECONE_INDEX_NAME", "legal-ai-index")
+
 # ── Embeddings ────────────────────────────────────────────────────────────────
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 CHROMA_COLLECTION: str = os.getenv("CHROMA_COLLECTION", "legal_docs")

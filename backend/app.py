@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import shutil
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
 
@@ -54,6 +55,20 @@ log = get_logger(__name__)
 
 # ── Application ───────────────────────────────────────────────────────────────
 
+
+@asynccontextmanager
+async def lifespan(app):
+    """Validate config and initialise the database on startup."""
+    try:
+        validate()
+    except ValueError as exc:
+        log.critical("Startup config error: %s", exc)
+        raise
+    init_db()
+    log.info("Legal AI System is running.")
+    yield
+
+
 app = FastAPI(
     title="Legal AI System — Pearson Specter Litt",
     description=(
@@ -63,6 +78,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -75,18 +91,6 @@ app.add_middleware(
 
 # Allowed upload types
 _ALLOWED_SUFFIXES = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp"}
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    """Validate config and initialise the database on every startup."""
-    try:
-        validate()
-    except ValueError as exc:
-        log.critical("Startup config error: %s", exc)
-        raise
-    init_db()
-    log.info("Legal AI System is running.")
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

@@ -1,31 +1,49 @@
 """
-embeddings.py — ChromaDB vector store + sentence-transformer embeddings.
+embeddings.py — Adaptive vector store for the Legal AI System.
 
-Responsibilities:
-  - Initialize the ChromaDB persistent client and collection (once per process)
-  - Embed text using sentence-transformers/all-MiniLM-L6-v2
-  - Store Chunk objects into ChromaDB (with deduplication)
-  - Query for nearest-neighbour chunks given a text query
+When PINECONE_API_KEY is set:  uses Pinecone Serverless [Production].
+When it is NOT set:            falls back to local ChromaDB [Local Dev].
+
+Public API (same regardless of backend):
+  embed_texts(texts)           → List[List[float]]
+  add_chunks(chunks)           → int  (count written)
+  query_chunks(query, ...)     → List[RetrievedChunk]
+  delete_doc_chunks(doc_id)    → int  (count removed)
+  health_check()               → bool
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+import time
 
-import chromadb
-from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
-from backend.config import CHROMA_COLLECTION, CHROMA_DIR, EMBEDDING_MODEL
+from backend.config import (
+    PINECONE_API_KEY, PINECONE_INDEX_NAME,
+    EMBEDDING_MODEL, CHROMA_COLLECTION,
+)
 from backend.logger import get_logger
 from backend.schemas import Chunk, RetrievedChunk
 
 log = get_logger(__name__)
 
-# ── Singletons (lazy-initialised once per process) ────────────────────────────
-_client: Optional[chromadb.ClientAPI] = None
-_collection: Optional[chromadb.Collection] = None
+# ── Backend selection ──────────────────────────────────────────────────────────
+
+USE_PINECONE = bool(PINECONE_API_KEY)
+
+if USE_PINECONE:
+    from pinecone import Pinecone as _Pinecone
+    log.info("Using Pinecone as the vector store.")
+else:
+    import chromadb
+    log.warning("PINECONE_API_KEY not set — falling back to local ChromaDB.")
+
+# ── Singletons ─────────────────────────────────────────────────────────────────
+
 _model: Optional[SentenceTransformer] = None
+_pinecone_index: Any = None
+_chroma_collection: Any = None
 
 
 def _get_model() -> SentenceTransformer:
@@ -37,94 +55,79 @@ def _get_model() -> SentenceTransformer:
     return _model
 
 
-def _get_collection() -> chromadb.Collection:
-    global _client, _collection
-    if _collection is None:
-        _client = chromadb.PersistentClient(
-            path=str(CHROMA_DIR),
-            settings=Settings(anonymized_telemetry=False),
-        )
-        _collection = _client.get_or_create_collection(
+def _get_pinecone_index() -> Any:
+    global _pinecone_index
+    if _pinecone_index is None:
+        pc = _Pinecone(api_key=PINECONE_API_KEY)
+        _pinecone_index = pc.Index(PINECONE_INDEX_NAME)
+        log.info("Pinecone index '%s' ready.", PINECONE_INDEX_NAME)
+    return _pinecone_index
+
+
+def _get_chroma_collection() -> Any:
+    global _chroma_collection
+    if _chroma_collection is None:
+        client = chromadb.PersistentClient(path="./data/chroma")
+        _chroma_collection = client.get_or_create_collection(
             name=CHROMA_COLLECTION,
             metadata={"hnsw:space": "cosine"},
         )
-        log.info(
-            "ChromaDB collection '%s' ready. Total items: %d",
-            CHROMA_COLLECTION,
-            _collection.count(),
-        )
-    return _collection
+        log.info("ChromaDB collection '%s' ready. Total items: %d",
+                 CHROMA_COLLECTION, _chroma_collection.count())
+    return _chroma_collection
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# ── Public API ─────────────────────────────────────────────────────────────────
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
-    """
-    Embed a list of strings with the sentence-transformer model.
-
-    Args:
-        texts: List of raw strings to embed.
-
-    Returns:
-        List of float vectors (one per input string).
-    """
     model = _get_model()
     vectors = model.encode(texts, show_progress_bar=False, batch_size=32)
     return vectors.tolist()
 
 
 def add_chunks(chunks: List[Chunk]) -> int:
-    """
-    Embed and store chunks in ChromaDB, skipping duplicates.
-
-    Args:
-        chunks: List of Chunk objects produced by the chunker.
-
-    Returns:
-        Number of chunks actually written (excludes duplicates).
-    """
     if not chunks:
         return 0
 
-    collection = _get_collection()
-
-    # Check which IDs already exist so we don't re-embed unnecessarily
-    try:
-        existing = collection.get(ids=[c.chunk_id for c in chunks])
-        existing_ids = set(existing["ids"])
-    except Exception:
-        existing_ids = set()
-
-    new_chunks = [c for c in chunks if c.chunk_id not in existing_ids]
-
-    if not new_chunks:
-        log.debug("All %d chunks already in ChromaDB — nothing to add.", len(chunks))
-        return 0
-
-    texts = [c.text for c in new_chunks]
+    texts = [c.text for c in chunks]
     embeddings = embed_texts(texts)
 
-    collection.add(
-        ids=[c.chunk_id for c in new_chunks],
-        embeddings=embeddings,
-        documents=texts,
-        metadatas=[
-            {
+    if USE_PINECONE:
+        index = _get_pinecone_index()
+        vectors_to_upsert = []
+        for c, emb in zip(chunks, embeddings):
+            vectors_to_upsert.append({
+                "id": c.chunk_id,
+                "values": emb,
+                "metadata": {
+                    "doc_id": c.doc_id,
+                    "chunk_index": c.chunk_index,
+                    "filename": str(c.metadata.get("filename", "")),
+                    "page_number": int(c.metadata.get("page_number", 1)),
+                    "text": c.text,
+                }
+            })
+        batch_size = 100
+        for i in range(0, len(vectors_to_upsert), batch_size):
+            index.upsert(vectors=vectors_to_upsert[i: i + batch_size])
+            time.sleep(0.1)
+        log.info("Added %d chunks to Pinecone index '%s'.", len(chunks), PINECONE_INDEX_NAME)
+    else:
+        col = _get_chroma_collection()
+        col.upsert(
+            ids=[c.chunk_id for c in chunks],
+            embeddings=embeddings,
+            documents=texts,
+            metadatas=[{
                 "doc_id": c.doc_id,
-                "chunk_index": str(c.chunk_index),
+                "chunk_index": c.chunk_index,
                 "filename": str(c.metadata.get("filename", "")),
-                "page_number": str(c.metadata.get("page_number", "1")),
-            }
-            for c in new_chunks
-        ],
-    )
+                "page_number": int(c.metadata.get("page_number", 1)),
+            } for c in chunks],
+        )
+        log.info("Added %d chunks to ChromaDB collection '%s'.", len(chunks), CHROMA_COLLECTION)
 
-    log.info(
-        "Added %d chunks to ChromaDB (skipped %d existing).",
-        len(new_chunks),
-        len(chunks) - len(new_chunks),
-    )
-    return len(new_chunks)
+    return len(chunks)
 
 
 def query_chunks(
@@ -132,99 +135,90 @@ def query_chunks(
     top_k: int = 5,
     doc_ids: Optional[List[str]] = None,
 ) -> List[RetrievedChunk]:
-    """
-    Find the most relevant chunks for a query string.
-
-    Args:
-        query:   The natural-language question or drafting task.
-        top_k:   Maximum results to return.
-        doc_ids: If given, restrict search to these document IDs only.
-
-    Returns:
-        List of RetrievedChunk ordered by relevance (highest score first).
-    """
-    collection = _get_collection()
-
-    total = collection.count()
-    if total == 0:
-        log.warning("ChromaDB is empty — no chunks available to query.")
-        return []
-
     query_embedding = embed_texts([query])[0]
 
-    # Build optional metadata filter
-    where: Optional[Dict[str, Any]] = None
-    if doc_ids:
-        if len(doc_ids) == 1:
-            where = {"doc_id": doc_ids[0]}
-        else:
-            where = {"doc_id": {"$in": doc_ids}}
-
-    n_results = min(top_k, total)
-
-    try:
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=n_results,
-            where=where,
-            include=["documents", "metadatas", "distances"],
-        )
-    except Exception as e:
-        log.error("ChromaDB query failed: %s", e)
-        return []
-
-    retrieved: List[RetrievedChunk] = []
-    for chunk_id, doc, meta, dist in zip(
-        results["ids"][0],
-        results["documents"][0],
-        results["metadatas"][0],
-        results["distances"][0],
-    ):
-        # ChromaDB cosine distance: 0 = identical → similarity = 1 - dist/2
-        score = max(0.0, 1.0 - dist / 2.0)
-        retrieved.append(
-            RetrievedChunk(
-                chunk_id=chunk_id,
-                doc_id=meta.get("doc_id", ""),
-                filename=meta.get("filename", ""),
-                chunk_index=int(meta.get("chunk_index", 0)),
-                text=doc,
-                score=round(score, 4),
-                page_number=int(meta["page_number"]) if meta.get("page_number") else None,
+    if USE_PINECONE:
+        index = _get_pinecone_index()
+        where: Optional[Dict[str, Any]] = None
+        if doc_ids:
+            where = {"doc_id": {"$eq": doc_ids[0]}} if len(doc_ids) == 1 \
+                else {"doc_id": {"$in": doc_ids}}
+        try:
+            results = index.query(
+                vector=query_embedding, top_k=top_k,
+                filter=where, include_metadata=True
             )
-        )
+        except Exception as e:
+            log.error("Pinecone query failed: %s", e)
+            return []
 
-    top_score = retrieved[0].score if retrieved else 0.0
-    log.debug("Query returned %d chunks (top score=%.3f).", len(retrieved), top_score)
+        retrieved = []
+        for match in results.get("matches", []):
+            meta = match.get("metadata", {})
+            retrieved.append(RetrievedChunk(
+                chunk_id=match["id"], doc_id=meta.get("doc_id", ""),
+                filename=meta.get("filename", ""), chunk_index=int(meta.get("chunk_index", 0)),
+                text=meta.get("text", ""), score=round(match.get("score", 0.0), 4),
+                page_number=int(meta.get("page_number", 1))
+            ))
+    else:
+        col = _get_chroma_collection()
+        where_chroma = {"doc_id": {"$in": doc_ids}} if doc_ids else None
+        try:
+            results = col.query(
+                query_embeddings=[query_embedding], n_results=min(top_k, col.count() or 1),
+                where=where_chroma, include=["documents", "metadatas", "distances"],
+            )
+        except Exception as e:
+            log.error("ChromaDB query failed: %s", e)
+            return []
+
+        retrieved = []
+        if results and results.get("ids"):
+            for idx, chunk_id in enumerate(results["ids"][0]):
+                meta = results["metadatas"][0][idx]
+                dist = results["distances"][0][idx]
+                retrieved.append(RetrievedChunk(
+                    chunk_id=chunk_id, doc_id=meta.get("doc_id", ""),
+                    filename=meta.get("filename", ""), chunk_index=int(meta.get("chunk_index", 0)),
+                    text=results["documents"][0][idx], score=round(1 - dist, 4),
+                    page_number=int(meta.get("page_number", 1))
+                ))
+
+    log.debug("Query returned %d chunks.", len(retrieved))
     return retrieved
 
 
 def delete_doc_chunks(doc_id: str) -> int:
-    """
-    Remove all chunks belonging to `doc_id` from ChromaDB.
-
-    Returns:
-        Number of chunks deleted.
-    """
-    collection = _get_collection()
-    try:
-        existing = collection.get(where={"doc_id": doc_id})
-        ids_to_delete = existing["ids"]
-        if ids_to_delete:
-            collection.delete(ids=ids_to_delete)
-            log.info("Deleted %d chunks for doc_id=%s.", len(ids_to_delete), doc_id)
-        return len(ids_to_delete)
-    except Exception as e:
-        log.error("Failed to delete chunks for doc_id=%s: %s", doc_id, e)
-        return 0
+    if USE_PINECONE:
+        try:
+            _get_pinecone_index().delete(filter={"doc_id": {"$eq": doc_id}})
+            log.info("Deleted chunks for doc_id=%s from Pinecone.", doc_id)
+            return 1
+        except Exception as e:
+            log.error("Pinecone delete failed for doc_id=%s: %s", doc_id, e)
+            return 0
+    else:
+        try:
+            col = _get_chroma_collection()
+            existing = col.get(where={"doc_id": doc_id})
+            if existing["ids"]:
+                col.delete(ids=existing["ids"])
+                log.info("Deleted %d chunks for doc_id=%s from ChromaDB.", len(existing["ids"]), doc_id)
+                return len(existing["ids"])
+            return 0
+        except Exception as e:
+            log.error("ChromaDB delete failed for doc_id=%s: %s", doc_id, e)
+            return 0
 
 
 def health_check() -> bool:
-    """Returns True if ChromaDB is reachable."""
     try:
-        col = _get_collection()
-        col.count()
+        if USE_PINECONE:
+            _get_pinecone_index().describe_index_stats()
+        else:
+            _get_chroma_collection().count()
         return True
     except Exception as e:
-        log.error("ChromaDB health check failed: %s", e)
+        log.error("Vector store health check failed: %s", e)
         return False
